@@ -2,42 +2,10 @@
 
 ppu::ppu(cart c)
 {
-	uint16_t size = c.chr_banks * CHR_ROM_PAGE_SIZE;
-	chr_rom = (uint8_t*)malloc(size * sizeof(uint8_t));
-
-	for (int i = 0; i < size; i++)
-		chr_rom[i] = c.chr_rom[i];
-
-	mirror = c.scr_mirroring;
+	map = new bus();
 
 	oam_addr = 0;
 	internal_data_buf = 0;
-}
-
-uint16_t ppu::mirroring_vram_addr(uint16_t addr)
-{
-	uint16_t mirrored_vram = addr & 0b10111111111111;
-	uint16_t vram_index = mirrored_vram - 0x2000;
-	uint16_t name_table = vram_index / 0x400;
-
-	switch (mirror)
-	{
-		case Mirroring::VERTICAL :
-			if (name_table == 2 | name_table == 3)
-			{
-				vram_index = vram_index - 0x800;
-			}
-		case Mirroring::HORIZONTAL:
-			if (name_table == 2 | name_table == 1)
-			{
-				vram_index = vram_index - 0x400;
-			}
-			else
-			{
-				vram_index = vram_index - 0x800;
-			}
-	}
-	return vram_index;
 }
 
 void ppu::incr_addr()
@@ -126,18 +94,9 @@ void ppu::write_to_data(uint8_t value)
 {
 	uint16_t address = (uint16_t)addr.hi << 8 | (uint16_t)addr.lo;
 
-	if (address >= 0x0000 && address <= 0x1fff)
+	if (address >= 0x0000 && address <= 0x3eff)
 	{
-		std::cerr << "CHR ROM SPACE" << std::endl;
-	}
-	else if (address >= 0x2000 && address <= 0x2fff)
-	{
-		uint16_t mirror_addr = mirroring_vram_addr(address);
-		vram[mirror_addr] = value;
-	}
-	else if (address >= 0x3000 && address <= 0x3eff)
-	{
-		std::cerr << "DANGER ZONE" << std::endl;
+		map->mem_write(value, address, false);
 	}
 	else if (address == 0x3f10 | address == 0x3f14 | address == 0x3f18 | address == 0x3f1c)
 	{
@@ -193,19 +152,9 @@ uint8_t ppu::read_data()
 
 	uint8_t result;
 
-	if (address >= 0x0000 && address <= 0x1fff)
+	if (address >= 0x0000 && address <= 0x3eff)
 	{
-		result = internal_data_buf;
-	}
-	else if (address >= 0x2000 && address <= 0x2fff)
-	{
-		result = internal_data_buf;
-		uint16_t mirror_addr = mirroring_vram_addr(address);
-		internal_data_buf = vram[mirror_addr];
-	}
-	else if (address >= 0x3000 && address <= 0x3eff)
-	{
-		std::cerr << "DANGER ZONE" << std::endl;
+		result = map->mem_read(address, false);
 	}
 	else if (address == 0x3f10 | address == 0x3f14 | address == 0x3f18 | address == 0x3f1c)
 	{
@@ -224,4 +173,8 @@ uint8_t ppu::read_data()
 	}
 
 	return result;
+}
+
+void ppu::connect_bus()
+{
 }

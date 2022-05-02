@@ -1,9 +1,10 @@
 #pragma once
 #include <iostream>
+#include <fstream>
+#include <vector>
 #include <sstream>
 #include <filesystem>
-#include <iomanip>
-#include <string_view>
+#include <iterator>
 
 #define PRG_ROM_PAGE_SIZE 16384
 #define CHR_ROM_PAGE_SIZE 8192

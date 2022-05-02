@@ -1,4 +1,5 @@
 #include "6502.h"
+#include "ppu.h"
 
 int main()
 {

@@ -2,6 +2,8 @@
 #include <iostream>
 #include "cart.h"
 
+class bus;
+
 struct addr_reg
 {
 	uint8_t hi = 0;
@@ -51,6 +53,7 @@ struct scrl_reg
 {
 	uint8_t scroll_x = 0;
 	uint8_t scroll_y = 0;
+
 	bool latch = false;
 };
 
@@ -73,10 +76,11 @@ class ppu
 
 	uint8_t internal_data_buf;
 
+	bus* map;
+
 public:
 
 	ppu(cart c);
-	uint16_t mirroring_vram_addr(uint16_t addr);
 	void incr_addr();
 
 	void write_to_ctrl(uint8_t  value);
@@ -91,4 +95,6 @@ public:
 	uint8_t read_status();
 	uint8_t read_oam_data();
 	uint8_t read_data();
+
+	void connect_bus();
 };

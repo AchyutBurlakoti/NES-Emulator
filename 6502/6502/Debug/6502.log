@@ -1,27 +1,42 @@
-﻿  main.cpp
-D:\PPP\6502\6502\main.cpp(113,5): error C4996: 'scanf': This function or variable may be unsafe. Consider using scanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-D:\PPP\6502\6502\main.cpp(120,8): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(120,50): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(128,13): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(132,29): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(140,38): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(144,41): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(148,13): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(148,79): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(152,39): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(156,43): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(160,13): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(160,81): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(164,48): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(168,45): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(172,13): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(172,73): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(176,46): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(180,13): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(180,93): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(206,16): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(206,74): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(215,44): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(215,61): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(215,74): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
-D:\PPP\6502\6502\main.cpp(215,90): warning C4554: '&': check operator precedence for possible error; use parentheses to clarify precedence
+﻿  6502.cpp
+  The contents of <filesystem> are available only with C++17 or later.
+  The contents of <string_view> are available only with C++17 or later.
+D:\PPP\6502\6502\6502.cpp(142,52): error C2660: 'bus::mem_write': function does not take 2 arguments
+D:\PPP\6502\6502\bus.h(17,7): message : see declaration of 'bus::mem_write'
+D:\PPP\6502\6502\6502.cpp(149,8): error C2280: 'bus::bus(void)': attempting to reference a deleted function
+D:\PPP\6502\6502\bus.h(25): message : compiler has generated 'bus::bus' here
+D:\PPP\6502\6502\bus.h(25,1): message : 'bus::bus(void)': function was implicitly deleted because a data member 'bus::c' has either no appropriate default constructor or overload resolution was ambiguous
+D:\PPP\6502\6502\bus.h(11): message : see declaration of 'bus::c'
+D:\PPP\6502\6502\6502.cpp(467,15): warning C4552: '>=': result of expression not used
+D:\PPP\6502\6502\6502.cpp(480,16): warning C4552: '>=': result of expression not used
+  cart.cpp
+  The contents of <filesystem> are available only with C++17 or later.
+  The contents of <string_view> are available only with C++17 or later.
+D:\PPP\6502\6502\cart.cpp(6,16): error C2079: 'input_file' uses undefined class 'std::basic_ifstream<char,std::char_traits<char>>'
+D:\PPP\6502\6502\cart.cpp(6,31): error C2440: 'initializing': cannot convert from 'const std::string' to 'int'
+D:\PPP\6502\6502\cart.cpp(6,26): message : No user-defined-conversion operator available that can perform this conversion, or the operator cannot be called
+  main.cpp
+  The contents of <filesystem> are available only with C++17 or later.
+  The contents of <string_view> are available only with C++17 or later.
+D:\PPP\6502\6502\main.cpp(6,6): error C2512: 'cpu': no appropriate default constructor available
+D:\PPP\6502\6502\6502.h(109,7): message : see declaration of 'cpu'
+  bus.cpp
+  The contents of <filesystem> are available only with C++17 or later.
+  The contents of <string_view> are available only with C++17 or later.
+D:\PPP\6502\6502\bus.cpp(201,41): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+D:\PPP\6502\6502\bus.cpp(208,41): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+  ppu.cpp
+  The contents of <filesystem> are available only with C++17 or later.
+  The contents of <string_view> are available only with C++17 or later.
+D:\PPP\6502\6502\ppu.cpp(5,8): error C2280: 'bus::bus(void)': attempting to reference a deleted function
+D:\PPP\6502\6502\bus.h(25): message : compiler has generated 'bus::bus' here
+D:\PPP\6502\6502\bus.h(25,1): message : 'bus::bus(void)': function was implicitly deleted because a data member 'bus::c' has either no appropriate default constructor or overload resolution was ambiguous
+D:\PPP\6502\6502\bus.h(11): message : see declaration of 'bus::c'
+D:\PPP\6502\6502\ppu.cpp(68,17): warning C4804: '~': unsafe use of type 'bool' in operation
+D:\PPP\6502\6502\ppu.cpp(100,2): error C2143: syntax error: missing ';' before '}'
+D:\PPP\6502\6502\ppu.cpp(101,10): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+D:\PPP\6502\6502\ppu.cpp(101,88): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+D:\PPP\6502\6502\ppu.cpp(159,10): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+D:\PPP\6502\6502\ppu.cpp(159,88): warning C4554: '|': check operator precedence for possible error; use parentheses to clarify precedence
+  Generating Code...
+D:\PPP\6502\6502\bus.cpp(169): warning C4715: 'bus::mem_read': not all control paths return a value

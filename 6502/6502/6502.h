@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include "bus.h"
+#include "cart.h"
 
 #define LDA 0
 #define ADC 1
@@ -113,7 +114,7 @@ class cpu
 	u8 processor_status;
 	u16 program_counter;
 
-	mapper* map;
+	bus* map;
 
 	std::map<int, int> opcodes_addressing_mode_mapping;
 	std::map<int, int> opcodes_func_mapping;
@@ -214,7 +215,7 @@ class cpu
 
 public:
 
-	cpu();
+	cpu(cart c);
 	~cpu();
 	void load_program_in_rom(std::vector<u8> opcodes);
 	void connect_bus();
@@ -223,4 +224,6 @@ public:
 	void irq();
 	void nmi();
 	void print_contents();
+
+	uint8_t cycle(addressing_mode mode, bool simple, uint8_t offset = 0);
 };
