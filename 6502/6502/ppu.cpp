@@ -1,11 +1,13 @@
 #include "ppu.h"
 
-ppu::ppu(cart c)
+ppu::ppu(bus* b)
 {
-	map = new bus();
+	map = b;
 
 	oam_addr = 0;
 	internal_data_buf = 0;
+
+	cycles = 0;
 }
 
 void ppu::incr_addr()
@@ -98,7 +100,7 @@ void ppu::write_to_data(uint8_t value)
 	{
 		map->mem_write(value, address, false);
 	}
-	else if (address == 0x3f10 | address == 0x3f14 | address == 0x3f18 | address == 0x3f1c)
+	else if (address == 0x3f10 || address == 0x3f14 || address == 0x3f18 || address == 0x3f1c)
 	{
 		uint16_t addr_mirror = address - 0x10;
 		uint16_t final = (addr_mirror - 0x3f00);
@@ -156,7 +158,7 @@ uint8_t ppu::read_data()
 	{
 		result = map->mem_read(address, false);
 	}
-	else if (address == 0x3f10 | address == 0x3f14 | address == 0x3f18 | address == 0x3f1c)
+	else if (address == 0x3f10 || address == 0x3f14 || address == 0x3f18 || address == 0x3f1c)
 	{
 		uint16_t addr_mirror = address - 0x10;
 		uint16_t final = (addr_mirror - 0x3f00);
@@ -177,4 +179,11 @@ uint8_t ppu::read_data()
 
 void ppu::connect_bus()
 {
+}
+
+void ppu::tick(uint8_t cyc)
+{
+	cycles = cycles + cyc;
+
+	cycle_buf = cyc;
 }

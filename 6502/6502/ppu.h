@@ -1,8 +1,7 @@
 #pragma once
 #include <iostream>
-#include "cart.h"
 
-class bus;
+#include "bus.h"
 
 struct addr_reg
 {
@@ -78,9 +77,13 @@ class ppu
 
 	bus* map;
 
+	int cycles;
+	uint8_t cycle_buf;
+
 public:
 
-	ppu(cart c);
+	ppu() = default;
+	ppu(bus* b);
 	void incr_addr();
 
 	void write_to_ctrl(uint8_t  value);
@@ -97,4 +100,6 @@ public:
 	uint8_t read_data();
 
 	void connect_bus();
+
+	void tick(uint8_t cyc);
 };

@@ -1,4 +1,4 @@
-#include "bus.h"
+#include "ppu.h"
 #include "ram.h"
 
 void bus::mem_write(uint8_t data, uint16_t address, bool _cpu)
@@ -13,17 +13,17 @@ void bus::mem_write(uint8_t data, uint16_t address, bool _cpu)
 
 		else if (address == 0x2000)
 		{
-			p.write_to_ctrl(data);
+			p->write_to_ctrl(data);
 		}
 
 		else if (address == 0x2006)
 		{
-			p.write_to_ppu_addr(data);
+			p->write_to_ppu_addr(data);
 		}
 
 		else if (address == 0x2007)
 		{
-			p.write_to_data(data);
+			p->write_to_data(data);
 		}
 
 		else if (address >= 0x2008 && address <= 0x3fff)
@@ -89,7 +89,7 @@ uint8_t bus::mem_read(uint16_t address, bool _cpu)
 
 		else if (address == 0x2007)
 		{
-			p.read_data();
+			p->read_data();
 		}
 
 		else if (address >= 0x2008 && address <= 0x3fff)
@@ -115,7 +115,7 @@ uint8_t bus::mem_read(uint16_t address, bool _cpu)
 		if (address >= 0x0000 && address <= 0x1fff)
 		{
 			result              = internal_data_buf;
-			internal_data_buf   = c.chr_rom[address];
+			internal_data_buf   = c->chr_rom[address];
 		}
 
 		else if (address >= 0x2000 && address <= 0x2fff)
@@ -147,16 +147,27 @@ uint8_t bus::prg_rom_read(uint16_t address)
 {
 	address -= 0x8000;
 
-	if (c.prg_rom_len() == 0x4000 && address >= 0x4000)
+	if (c->prg_rom_len() == 0x4000 && address >= 0x4000)
 	{
 		address = address % 0x4000;
 	}
 
-	return c.prg_rom[address];
+	return c->prg_rom[address];
 }
 
-void bus::tick(uint8_t cycles)
+void bus::tick(uint8_t cyc)
 {
+	p->tick(cyc * 3);
+}
+
+void bus::connect_ppu_to_bus(ppu* pp)
+{
+	p = pp;
+}
+
+bus::bus(cart* ca)
+{
+	c = ca;
 }
 
 uint16_t bus::mirroring_vram_addr(uint16_t addr)
@@ -165,7 +176,7 @@ uint16_t bus::mirroring_vram_addr(uint16_t addr)
 	uint16_t vram_index      = mirrored_vram - 0x2000;
 	uint16_t name_table      = vram_index / 0x400;
 
-	switch (c.scr_mirroring)
+	switch (c->scr_mirroring)
 	{
 		case Mirroring::VERTICAL:
 
