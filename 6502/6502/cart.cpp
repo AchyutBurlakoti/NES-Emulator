@@ -1,8 +1,12 @@
 #include "cart.h"
+#include "helpers.h"
 
 cart::cart(const char* path)
 {
 	FILE* fd = fopen(path, "r+");
+
+	defer{ free(fd); };
+
 	fseek(fd, 0, SEEK_END);
 
 	long filesize = ftell(fd);
@@ -12,6 +16,7 @@ cart::cart(const char* path)
 	fseek(fd, 0, SEEK_SET);
 
 	int bytes_read = fread(nes_file, filesize, 1, fd);
+
 
 	uint8_t mapper = (nes_file[7] & 0xf0) | (nes_file[6] >> 4);
 

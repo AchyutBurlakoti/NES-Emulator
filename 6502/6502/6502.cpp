@@ -210,8 +210,8 @@ void cpu::connect_bus(cart* c, ppu* p)
 void cpu::run()
 {
 	int counter = 0;
-	char ch = 0xa;
-	while (ch == 0xa && counter != 16)
+	program_counter = 0x8000;
+	while (counter != 1600)
 	{
 		u8 opcode = map->mem_read(program_counter, true);
 		program_counter += 1;
@@ -276,6 +276,8 @@ void cpu::nmi()
 
 uint8_t cpu::lda(addressing_mode mode)
 {
+	std::cout << "LDA" << std::endl;
+
 	u16 addr = get_operand_address(mode);
 
 	accumulator = map->mem_read(addr, true);
@@ -721,7 +723,7 @@ uint8_t cpu::bcc(addressing_mode mode)
 	if ((processor_status & 0x01) == 0x00)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -733,7 +735,7 @@ uint8_t cpu::bcs(addressing_mode mode)
 	if ((processor_status & 0x01) == 0x01)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -745,7 +747,7 @@ uint8_t cpu::beq(addressing_mode mode)
 	if ((processor_status & 0x02) == 0x02)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -757,7 +759,7 @@ uint8_t cpu::bmi(addressing_mode mode)
 	if ((processor_status & 0x80) == 0x80)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -769,7 +771,7 @@ uint8_t cpu::bne(addressing_mode mode)
 	if ((processor_status & 0x02) == 0x00)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -781,7 +783,7 @@ uint8_t cpu::bpl(addressing_mode mode)
 	if ((processor_status & 0x80) == 0x00)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -793,7 +795,7 @@ uint8_t cpu::bvc(addressing_mode mode)
 	if ((processor_status & 0x40) == 0x00)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;
@@ -805,7 +807,7 @@ uint8_t cpu::bvs(addressing_mode mode)
 	if ((processor_status & 0x40) == 0x40)
 	{
 		u8 operand = map->mem_read(program_counter, true);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
 
 	return 2;

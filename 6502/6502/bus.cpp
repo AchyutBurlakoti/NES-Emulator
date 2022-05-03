@@ -138,7 +138,7 @@ uint8_t bus::mem_read(uint16_t address, bool _cpu)
 uint16_t bus::mem_read_16(uint16_t address, bool _cpu)
 {
 	uint16_t lower_order_byte     = mem_read(address, _cpu);
-	uint16_t higher_order_bypte   = mem_read(address, _cpu);
+	uint16_t higher_order_bypte   = mem_read(address + 1, _cpu);
 
 	return higher_order_bypte << 8 | lower_order_byte;
 }

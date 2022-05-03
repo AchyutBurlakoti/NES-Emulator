@@ -1,7 +1,3 @@
-﻿  main.cpp
+﻿  cart.cpp
   The contents of <filesystem> are available only with C++17 or later.
-  ppu.cpp
-  The contents of <filesystem> are available only with C++17 or later.
-D:\PPP\6502\6502\ppu.cpp(70,17): warning C4804: '~': unsafe use of type 'bool' in operation
-  Generating Code...
   6502.vcxproj -> D:\PPP\6502\Debug\6502.exe
