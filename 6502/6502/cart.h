@@ -1,9 +1,13 @@
 #pragma once
+#define _CRT_SECURE_NO_DEPRECATE
+#include <stdio.h>
+
 #include <iostream>
+#include <fstream>
+#include <vector>
 #include <sstream>
 #include <filesystem>
-#include <iomanip>
-#include <string_view>
+#include <iterator>
 
 #define PRG_ROM_PAGE_SIZE 16384
 #define CHR_ROM_PAGE_SIZE 8192
@@ -32,7 +36,7 @@ private:
 
 	uint8_t mapper;
 
-	std::string nes_file;
+	char* nes_file;
 
 	uint16_t prg_rom_start;
 	uint16_t chr_rom_start;
@@ -42,7 +46,8 @@ private:
 
 public :
 
-	cart(const std::string& path);
+	cart() = default;
+	cart(const char* path);
 	void load_prg_chr_rom();
 	uint16_t prg_rom_len();
 };

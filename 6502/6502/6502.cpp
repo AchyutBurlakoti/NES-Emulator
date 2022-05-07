@@ -1,12 +1,68 @@
 #include "6502.h"
-#include "bus.h"
 
 void cpu::print_contents()
 {
 	printf("\nAccumulator : %x   X : %x   Y : %x   stack pointer : %x    program counter : %x  flags register : %x", accumulator, x, y, stack_pointer, program_counter, processor_status);
 }
 
-cpu::cpu() :
+uint8_t cpu::cycle(addressing_mode mode, bool simple)
+{
+	if (mode == addressing_mode::accumulator)
+	{
+		return 2;
+	}
+
+	if (simple)
+	{
+		if (mode == addressing_mode::zero_page)
+		{
+			return 3;
+		}
+
+		else if (mode == addressing_mode::zero_page_x || mode == addressing_mode::zero_page_y
+			|| mode == addressing_mode::absolute || mode == addressing_mode::absolute_x
+			|| mode == addressing_mode::absolute_y)
+		{
+			return 4;
+		}
+
+		else if (mode == addressing_mode::indirect_x)
+		{
+			return 6;
+		}
+
+		else if (mode == addressing_mode::indirect_y)
+		{
+			return 5;
+		}
+	}
+
+	else
+	{
+		if (mode == addressing_mode::immediate)
+		{
+			return 2;
+		}
+
+		else if (mode == addressing_mode::zero_page)
+		{
+			return 5;
+		}
+
+		else if (mode == addressing_mode::zero_page_x || mode == addressing_mode::absolute)
+		{
+			return 6;
+		}
+
+		else if (mode == addressing_mode::absolute_x)
+		{
+			return 7;
+		}
+	}
+	return uint8_t(-1);
+}
+
+cpu::cpu(bus* b) :
 	modes{ addressing_mode::immediate,
 	addressing_mode::zero_page,
 	addressing_mode::zero_page_x,
@@ -39,6 +95,7 @@ addr_mode{ &cpu::immediate, &cpu::zero_page, &cpu::zero_page_x, &cpu::zero_page_
 	stack_pointer = 0xff;
 	processor_status = 0x00;
 	program_counter = 0x0000;
+	cycles = 0;
 
 	std::cout << "Initializing the CPU......\n";
 
@@ -124,7 +181,7 @@ addr_mode{ &cpu::immediate, &cpu::zero_page, &cpu::zero_page_x, &cpu::zero_page_
 		// sty 
 		{0x84, STY}, {0x94, STY}, {0x8c, STY},
 	};
-	map->mem_write(0xa, 0x4400);
+	map = b;
 }
 
 cpu::~cpu()
@@ -132,162 +189,177 @@ cpu::~cpu()
 
 }
 
-void cpu::load_program_in_rom(std::vector<u8> opcodes) // to load program in prg_rom and save reference to the code 0xffc memory cell
-{
-	int counter = 0x8000;
-	program_counter = counter;
-	map->mem_write_16(0x8000, 0xfffc); // used for reset 
-	for (auto i : opcodes)
-	{
-		map->mem_write(opcodes[counter - 0x8000], counter);
-		counter++;
-	}
-}
 
-void cpu::connect_bus()
+void cpu::connect_bus(cart* c, ppu* p)
 {
-	map = new mapper;
+	map = new bus(c);
+	map->connect_ppu_to_bus(p);
 }
 
 void cpu::run()
 {
 	int counter = 0;
-	char ch = 0xa;
-	while (ch == 0xa && counter != 16)
+	program_counter = 0x8000;
+	while (counter != 500)
 	{
-		u8 opcode = map->mem_read(program_counter);
+		// polling nmi interrupt by cpu
+		if (map->nmi_interrupt())
+		{
+			nmi();
+		}
+
+		u8 opcode = map->mem_read(program_counter, true);
 		program_counter += 1;
 		counter++;
 		(this->*functions[opcodes_func_mapping[opcode]])(modes[opcodes_addressing_mode_mapping[opcode]]);
-		ch = getchar();
 	}
 }
 
-void cpu::reset()
+OPCODE_RT cpu::reset()
 {
 	accumulator = 0x00;
 	x = 0x00;
 	y = 0x00;
 	processor_status = 0x00;
+	stack_pointer = 0xfd;
 
-	program_counter = map->mem_read(0xfffc);
+	program_counter = map->mem_read(0xfffc, true);
+
+	cycles += 8;
+
+	map->tick(8);
 }
 
-void cpu::irq()
+OPCODE_RT cpu::irq()
 {
 	if ((processor_status & 0x04) == 0x00)
 	{
 		u16 page_index = 0x0100;
-		map->mem_write((program_counter >> 8) & 0x00ff, page_index | static_cast<u16>(stack_pointer));
+		map->mem_write((program_counter >> 8) & 0x00ff, page_index | static_cast<u16>(stack_pointer), true);
 		stack_pointer--;
-		map->mem_write(program_counter & 0x00ff, page_index | static_cast<u16>(stack_pointer));
+		map->mem_write(program_counter & 0x00ff, page_index | static_cast<u16>(stack_pointer), true);
 		stack_pointer--;
 
 		set_flags(flags::break_instruction, 0);
 		set_flags(flags::overflow, 1);
 		set_flags(flags::irq_disable, 1);
-		map->mem_write(processor_status, page_index | static_cast<u16>(stack_pointer));
+
+		map->mem_write(processor_status, page_index | static_cast<u16>(stack_pointer), true);
 		stack_pointer--;
 
-		program_counter = map->mem_read_16(0xfffe);
+		program_counter = map->mem_read_16(0xfffe, true);
+
+		cycles += 7;
+		map->tick(7);
 	}
 }
 
-void cpu::nmi()
+OPCODE_RT cpu::nmi()
 {
 	if ((processor_status & 0x04) == 0x00)
 	{
 		u16 page_index = 0x0100;
-		map->mem_write((program_counter >> 8) & 0x00ff, page_index | static_cast<u16>(stack_pointer));
+		map->mem_write((program_counter >> 8) & 0x00ff, page_index | static_cast<u16>(stack_pointer), true);
 		stack_pointer--;
-		map->mem_write(program_counter & 0x00ff, page_index | static_cast<u16>(stack_pointer));
-		stack_pointer--;
-
-		set_flags(flags::break_instruction, 0);
-		set_flags(flags::overflow, 1);
-		set_flags(flags::irq_disable, 1);
-		map->mem_write(processor_status, page_index | static_cast<u16>(stack_pointer));
+		map->mem_write(program_counter & 0x00ff, page_index | static_cast<u16>(stack_pointer), true);
 		stack_pointer--;
 
-		program_counter = map->mem_read_16(0xfffa);
+		set_flags(flags::break_instruction, 0);				      
+		set_flags(flags::overflow, 1);    
+		set_flags(flags::irq_disable, 1);    
+
+		map->mem_write(processor_status, page_index | static_cast<u16>(stack_pointer), true);
+		stack_pointer--;
+
+		program_counter = map->mem_read_16(0xfffa, true);
+
+		cycles += 8;
+		map->tick(8);
 	}
 }
 
-void cpu::lda(addressing_mode mode)
+OPCODE_RT cpu::lda(addressing_mode mode)
 {
+	std::cout << "LDA" << std::endl;
+
 	u16 addr = get_operand_address(mode);
 
-	printf("LDA \n");
+	accumulator = map->mem_read(addr, true);
 
-	accumulator = map->mem_read(addr);
-
-	set_flags(flags::negative, (accumulator & 0x80) == 0x80);
+	set_flags(flags::negative, accumulator & 0x80);
 	set_flags(flags::zero, accumulator == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::adc(addressing_mode mode)
+OPCODE_RT cpu::adc(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("ADC \n");
 
-	value_holder = map->mem_read(addr);
+	value_holder = map->mem_read(addr, true);
 	prev_accumulator = accumulator;
 	accumulator = accumulator + value_holder + (processor_status & 0x01);
 
-	set_flags(flags::negative, (accumulator & 0x80) == 0x80);
+	set_flags(flags::negative, accumulator & 0x80);
 	set_flags(flags::overflow, (accumulator < value_holder) | (accumulator < prev_accumulator));
 	set_flags(flags::zero, accumulator == 0x00);
 	set_flags(flags::carry, ((accumulator <= prev_accumulator) && (prev_accumulator != 0) && (value_holder != 0)));
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bitwise_and(addressing_mode mode)
+OPCODE_RT cpu::bitwise_and(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("AND \n");
 
-	value_holder = map->mem_read(addr);
+	value_holder = map->mem_read(addr, true);
 	prev_accumulator = accumulator;
 	accumulator &= value_holder;
 
-	set_flags(flags::negative, (accumulator & 0x80) == 0x80);
+	set_flags(flags::negative, accumulator & 0x80);
 	set_flags(flags::zero, accumulator == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::asl(addressing_mode mode)
+OPCODE_RT cpu::asl(addressing_mode mode)
 {
 	printf("ASL \n");
 
 	if (mode == addressing_mode::accumulator)
 	{
-		set_flags(flags::carry, (accumulator & 0x80) >> 7);
-
+		prev_accumulator = accumulator;
 		accumulator <<= 1;
+		set_flags(flags::carry, ((accumulator <= prev_accumulator) && (prev_accumulator != 0) && (value_holder != 0)));
 	}
 	else
 	{
 		u16 addr = get_operand_address(mode);
 
-		value_holder = map->mem_read(addr);
+		value_holder     = map->mem_read(addr, true);
+		prev_accumulator = accumulator;
+		accumulator      = value_holder << 1;
 
-		set_flags(flags::carry, (value_holder & 0x80) >> 7);
+		set_flags(flags::carry, ((accumulator <= prev_accumulator) && (prev_accumulator != 0) && (value_holder != 0)));
 
-		value_holder <<= 1;
 
-		map->mem_write(value_holder, addr);
+		map->mem_write(value_holder, addr, true);
 
 		program_counter += 1;
 	}
@@ -295,165 +367,188 @@ void cpu::asl(addressing_mode mode)
 	set_flags(flags::negative, (accumulator & 0x80) == 0x80);
 	set_flags(flags::zero, accumulator == 0x00);
 
-	print_contents();
+	u8 op_cycles = cycle(mode, false);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bit(addressing_mode mode)
+OPCODE_RT cpu::bit(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("BIT \n");
 
-	value_holder = map->mem_read(addr);
+	value_holder = map->mem_read(addr, true);
 
-	set_flags(flags::zero, value_holder & accumulator);
+	set_flags(flags::zero, (value_holder & accumulator) == 0x00);
 	set_flags(flags::negative, value_holder & 0x80); // n -> msb bit
 	set_flags(flags::overflow, value_holder & 0x40); // v -> 2nd msb bit
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = mode == addressing_mode::zero_page ? 3 : 4;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::cmp(addressing_mode mode)
+OPCODE_RT cpu::cmp(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("CMP \n");
 
-	value_holder = map->mem_read(addr);	
+	uint16_t fetched = (uint16_t)map->mem_read(addr, true);
+	value_holder = (uint16_t)accumulator - fetched;	
 
-	set_flags(flags::zero, accumulator == value_holder);
-	set_flags(flags::negative, ((accumulator - value_holder) & 0x80) == 0x80);
-	set_flags(flags::carry, accumulator >= value_holder);
+	set_flags(flags::zero, (value_holder & 0x00ff) == 0x0000);
+	set_flags(flags::negative, value_holder & 0x0080);
+	set_flags(flags::carry, accumulator >= fetched);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::cpx(addressing_mode mode)
+OPCODE_RT cpu::cpx(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("CPX \n");
 
-	value_holder = map->mem_read(addr);
+	uint16_t fetched = (uint16_t)map->mem_read(addr, true);
+	value_holder = (uint16_t)x - fetched;
 
-	set_flags(flags::zero, x == value_holder);
-	set_flags(flags::negative, ((x - value_holder) & 0x80) == 0x80);
-	set_flags(flags::carry, x >= value_holder);
+	set_flags(flags::zero, (value_holder & 0x00ff) == 0x0000);
+	set_flags(flags::negative, value_holder & 0x0080);
+	set_flags(flags::carry, x >= fetched);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::cpy(addressing_mode mode)
+OPCODE_RT cpu::cpy(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("CPY \n");
 
-	value_holder = map->mem_read(addr);
+	uint16_t fetched = (uint16_t)map->mem_read(addr, true);
+	value_holder = (uint16_t)y - fetched;
 
-	set_flags(flags::zero, y == value_holder);
-	set_flags(flags::negative, ((y - value_holder) & 0x80) == 0x80);
-	set_flags(flags::carry, y >= value_holder);
+	set_flags(flags::zero, (value_holder & 0x00ff) == 0x0000);
+	set_flags(flags::negative, value_holder & 0x0080);
+	set_flags(flags::carry, y >= fetched);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::dec(addressing_mode mode)
+OPCODE_RT cpu::dec(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("DEC \n");
 
-	value_holder = map->mem_read(addr);
+	value_holder = map->mem_read(addr, true);
 	value_holder--;
 
-	map->mem_write(value_holder, addr);
+	map->mem_write(value_holder, addr, true);
 
-	set_flags(flags::negative, (value_holder & 0x80) == 0x80);
+	set_flags(flags::negative, value_holder & 0x80);
 	set_flags(flags::zero, value_holder == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, false);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::eor(addressing_mode mode)
+OPCODE_RT cpu::eor(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("EOR \n");
 
-	value_holder = map->mem_read(addr);
+	value_holder = map->mem_read(addr, true);
 	prev_accumulator = accumulator;
 	accumulator ^= value_holder;
 
-	set_flags(flags::negative, (value_holder & 0x80) == 0x80);
-	set_flags(flags::zero, value_holder == 0x00);
+	set_flags(flags::negative, accumulator & 0x80);
+	set_flags(flags::zero, accumulator == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::inc(addressing_mode mode)
+OPCODE_RT cpu::inc(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("INC \n");
 
-	value_holder = map->mem_read(addr);
+	value_holder = map->mem_read(addr, true);
 	value_holder++;
-	map->mem_write(value_holder, addr);
+	map->mem_write(value_holder, addr, true);
 
-	set_flags(flags::negative, (value_holder & 0x80) == 0x80);
+	set_flags(flags::negative, value_holder & 0x80);
 	set_flags(flags::zero, value_holder == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, false);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::ldx(addressing_mode mode)
+OPCODE_RT cpu::ldx(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("LDX \n");
 
-	x = map->mem_read(addr);
+	x = map->mem_read(addr, true);
 
-	set_flags(flags::negative, (x & 0x80) == 0x80);
+	set_flags(flags::negative, x & 0x80);
 	set_flags(flags::zero, x == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::ldy(addressing_mode mode)
+OPCODE_RT cpu::ldy(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("LDY \n");
 
-	y = map->mem_read(addr);
+	y = map->mem_read(addr, true);
 
-	set_flags(flags::negative, (y & 0x80) == 0x80);
+	set_flags(flags::negative, y & 0x80);
 	set_flags(flags::zero, y == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::lsr(addressing_mode mode)
+OPCODE_RT cpu::lsr(addressing_mode mode)
 {
 	printf("LSR \n");
 
@@ -472,12 +567,12 @@ void cpu::lsr(addressing_mode mode)
 	else
 	{
 		u16 addr = get_operand_address(mode);
-		value_holder = map->mem_read(addr);
+		value_holder = map->mem_read(addr, true);
 		u8 temp_hld = value_holder & 0x01;
 
 		value_holder >= 1;
 
-		map->mem_write(value_holder, addr);
+		map->mem_write(value_holder, addr, true);
 
 		set_flags(flags::negative, false); // n cleared
 		set_flags(flags::zero, value_holder == 0x00);
@@ -486,33 +581,42 @@ void cpu::lsr(addressing_mode mode)
 		program_counter += 1;
 	}
 	
-	print_contents();
+	u8 op_cycles = cycle(mode, false);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::nop(addressing_mode mode)
+OPCODE_RT cpu::nop(addressing_mode mode)
 {
 	printf("NOP \n");
 	for (u8 i = 0; i < 2; i++);
 		// clock++;
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::ora(addressing_mode mode)
+OPCODE_RT cpu::ora(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("ORA \n");
 
-	value_holder = map->mem_read(addr);
-	prev_accumulator = accumulator;   // ??????
+	value_holder = map->mem_read(addr, true);
 	accumulator |= value_holder;
 
-	set_flags(flags::negative, (accumulator & 0x80) == 0x80);
+	set_flags(flags::negative, accumulator & 0x80);
 	set_flags(flags::zero, accumulator == 0x00);
 
 	program_counter++;
+
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::rol(addressing_mode mode)
+OPCODE_RT cpu::rol(addressing_mode mode)
 {
 	printf("ROL \n");
 	if (mode == addressing_mode::accumulator)
@@ -534,7 +638,7 @@ void cpu::rol(addressing_mode mode)
 	{
 		u16 addr = get_operand_address(mode);
 
-		value_holder = map->mem_read(addr);
+		value_holder = map->mem_read(addr, true);
 		u8 temp_value_holder = value_holder;
 		u8 temp_processor_status = processor_status;
 
@@ -548,9 +652,13 @@ void cpu::rol(addressing_mode mode)
 
 		program_counter++;
 	}
+
+	u8 op_cycles = cycle(mode, false);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::ror(addressing_mode mode)
+OPCODE_RT cpu::ror(addressing_mode mode)
 {
 	printf("ROR \n");
 	if (mode == addressing_mode::accumulator)
@@ -558,7 +666,7 @@ void cpu::ror(addressing_mode mode)
 		value_holder = processor_status;
 		u8 temp_acc = accumulator;
 
-		set_flags(flags::carry, accumulator * 0x01);// put lsb to carry
+		set_flags(flags::carry, accumulator & 0x01);// put lsb to carry
 
 		accumulator >>= 1; // shift accumulator right
 		accumulator |= ((value_holder & 0x01) << 7); // put carry flag bit to accumulator msb
@@ -570,7 +678,7 @@ void cpu::ror(addressing_mode mode)
 	else
 	{
 		u16 addr = get_operand_address(mode);
-		value_holder = map->mem_read(addr);
+		value_holder = map->mem_read(addr, true);
 		u8 temp_value_holder = value_holder;
 		u8 temp_processor_status = processor_status;
 
@@ -584,320 +692,451 @@ void cpu::ror(addressing_mode mode)
 
 		program_counter++;
 	}
+
+	u8 op_cycles = cycle(mode, false);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::sbc(addressing_mode mode)
+OPCODE_RT cpu::sbc(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("SBC \n");
 
-	value_holder = map->mem_read(addr) ^ 0xff; // xor to invert value
+	value_holder = map->mem_read(addr, true) ^ 0xff; // xor to invert value
 	prev_accumulator = accumulator;
 	accumulator = accumulator + value_holder + (processor_status & 0x01);
 
-	set_flags(flags::negative, (accumulator & 0x80) == 0x80);
+	set_flags(flags::negative, accumulator & 0x80);
 	set_flags(flags::overflow, (accumulator < value_holder) | (accumulator < prev_accumulator));
 	set_flags(flags::carry, (accumulator <= prev_accumulator) && (prev_accumulator != 0) && (value_holder != 0));
 	set_flags(flags::zero, accumulator == 0x00);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::sta(addressing_mode mode)
+OPCODE_RT cpu::sta(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("STA \n");
 
-	map->mem_write(accumulator, addr);
+	map->mem_write(accumulator, addr, true);
 
 	program_counter += 1;
 
-	print_contents();
+	// quite different scheme
+	u8 op_cycles = cycle(mode, true);
+
+	if ((mode == addressing_mode::absolute_x) || (mode == addressing_mode::absolute_y) ||
+		(mode == addressing_mode::indirect_x))
+	{
+		op_cycles = op_cycles + 1;
+	}
+	else if (mode == addressing_mode::indirect_y)
+	{
+		op_cycles = op_cycles + 2;
+	}
+	else
+	{
+		///
+	}
 }
 
-void cpu::stx(addressing_mode mode)
+OPCODE_RT cpu::stx(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("STX \n");
 
-	map->mem_write(x, addr);
+	map->mem_write(x, addr, true);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::sty(addressing_mode mode)
+OPCODE_RT cpu::sty(addressing_mode mode)
 {
 	u16 addr = get_operand_address(mode);
 
 	printf("STY\n");
 
-	map->mem_write(y, addr);
+	map->mem_write(y, addr, true);
 
 	program_counter += 1;
 
-	print_contents();
+	u8 op_cycles = cycle(mode, true);
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bcc(addressing_mode mode)
+OPCODE_RT cpu::bcc(addressing_mode mode)
 {
 	printf("BCC \n");
 	if ((processor_status & 0x01) == 0x00)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bcs(addressing_mode mode)
+OPCODE_RT cpu::bcs(addressing_mode mode)
 {
 	printf("BCS \n");
 	if ((processor_status & 0x01) == 0x01)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::beq(addressing_mode mode)
+OPCODE_RT cpu::beq(addressing_mode mode)
 {
 	printf("BEQ \n");
 	if ((processor_status & 0x02) == 0x02)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bmi(addressing_mode mode)
+OPCODE_RT cpu::bmi(addressing_mode mode)
 {
 	printf("BMI \n");
 	if ((processor_status & 0x80) == 0x80)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bne(addressing_mode mode)
+OPCODE_RT cpu::bne(addressing_mode mode)
 {
 	printf("BNE \n");
 	if ((processor_status & 0x02) == 0x00)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bpl(addressing_mode mode)
+OPCODE_RT cpu::bpl(addressing_mode mode)
 {
 	printf("BPL \n");
 	if ((processor_status & 0x80) == 0x00)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bvc(addressing_mode mode)
+OPCODE_RT cpu::bvc(addressing_mode mode)
 {
 	printf("BVC \n");
 	if ((processor_status & 0x40) == 0x00)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::bvs(addressing_mode mode)
+OPCODE_RT cpu::bvs(addressing_mode mode)
 {
 	printf("BVS \n");
 	if ((processor_status & 0x40) == 0x40)
 	{
-		u8 operand = map->mem_read(program_counter);
-		program_counter = program_counter - (static_cast<u16>(operand ^ 0xff));
+		u8 operand = map->mem_read(program_counter, true);
+		program_counter = program_counter + (static_cast<u16>(operand ^ 0xff00)) - 1;
 	}
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::rti(addressing_mode mode)
+OPCODE_RT cpu::rti(addressing_mode mode)
 {
 	printf("RTI \n");
 
 	u16 page_index = 0x0100;
 
 	stack_pointer++;
-	processor_status = map->mem_read(page_index | static_cast<u16>(stack_pointer));
-	
-	set_flags(flags::overflow, 0);
-	set_flags(flags::break_instruction, 0);
+	processor_status = map->mem_read(page_index | static_cast<u16>(stack_pointer), true);
+
 
 	stack_pointer++;
-	program_counter = static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer)));
+	program_counter = static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer), true));
 	stack_pointer++;
-	program_counter |= static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer))) << 8;
+	program_counter |= static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer), true)) << 8;
+
+	u8 op_cycles = 6;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::rts(addressing_mode mode)
+OPCODE_RT cpu::rts(addressing_mode mode)
 {
 	printf("RTS \n");
 
 	u16 page_index = 0x0100;
 
 	stack_pointer++;
-	program_counter = static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer)));
+	program_counter = static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer), true));
 	stack_pointer++;
-	program_counter |= static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer))) << 8;
+	program_counter |= static_cast<u16>(map->mem_read(page_index | static_cast<u16>(stack_pointer), true)) << 8;
 
 	// depends on the value of pc when subroutine was called for now let's do
 	program_counter++;
+
+	u8 op_cycles = 6;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::brk(addressing_mode mode)
+OPCODE_RT cpu::brk(addressing_mode mode)
 {
 	printf("BRK \n");
 
 	set_flags(flags::irq_disable, 1);
-	map->mem_write((program_counter >> 8) & 0x00ff, 0x0100 + stack_pointer);
+	map->mem_write((program_counter >> 8) & 0x00ff, 0x0100 + stack_pointer, true);
 	stack_pointer--;
-	map->mem_write(program_counter && 0x00ff, 0x0100 + stack_pointer);
+	map->mem_write(program_counter && 0x00ff, 0x0100 + stack_pointer, true);
 	stack_pointer--;
 
 	set_flags(flags::break_instruction, 1);
-	map->mem_write(processor_status, 0x0100 + stack_pointer);
+	map->mem_write(processor_status, 0x0100 + stack_pointer, true);
 	stack_pointer--;
 	set_flags(flags::break_instruction, 0);
 
-	program_counter = map->mem_read_16(0xfffe);
+	program_counter = map->mem_read_16(0xfffe, true);
+
+	u8 op_cycles = 7;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::clc(addressing_mode mode)
+OPCODE_RT cpu::clc(addressing_mode mode)
 {
 	printf("CLC \n");
 	set_flags(flags::carry, false);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::sec(addressing_mode mode)
+OPCODE_RT cpu::sec(addressing_mode mode)
 {
 	printf("SEC \n");
 	set_flags(flags::carry, true);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::cli(addressing_mode mode)
+OPCODE_RT cpu::cli(addressing_mode mode)
 {
 	printf("CLI \n");
 	set_flags(flags::irq_disable, false);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::sei(addressing_mode mode)
+OPCODE_RT cpu::sei(addressing_mode mode)
 {
 	printf("SEI \n");
 	set_flags(flags::irq_disable, true);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::clv(addressing_mode mode)
+OPCODE_RT cpu::clv(addressing_mode mode)
 {
 	printf("CLV \n");
 	set_flags(flags::overflow, false);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::cld(addressing_mode mode)
+OPCODE_RT cpu::cld(addressing_mode mode)
 {
 	printf("CLD \n");
 	set_flags(flags::decimal_mode, false);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::sed(addressing_mode mode)
+OPCODE_RT cpu::sed(addressing_mode mode)
 {
 	printf("SED \n");
 	set_flags(flags::decimal_mode, true);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::jmp(addressing_mode mode)
+OPCODE_RT cpu::jmp(addressing_mode mode)
 {
 	printf("JMP \n");
 
-	u16 address = map->mem_read_16(program_counter);
+	u16 address = map->mem_read_16(program_counter, true);
 	program_counter = address;
+
+	if (mode == addressing_mode::absolute)
+	{
+		cycles = cycles + 3;
+		map->tick(3);
+	}
+	else
+	{
+		cycles = cycles + 5;
+		map->tick(5);
+	}
 }
 
-void cpu::jsr(addressing_mode mode)
+OPCODE_RT cpu::jsr(addressing_mode mode)
 {
 	printf("JSR \n");
-	u16 value = map->mem_read_16(program_counter);
+	u16 value = map->mem_read_16(program_counter, true);
 
 	program_counter+=2;
 
-	map->mem_write((program_counter >> 8) & 0x00ff, 0x0100 + stack_pointer);
+	map->mem_write((program_counter >> 8) & 0x00ff, 0x0100 + stack_pointer, true);
 	stack_pointer--;
-	map->mem_write(program_counter && 0x00ff, 0x0100 + stack_pointer);
+	map->mem_write(program_counter && 0x00ff, 0x0100 + stack_pointer, true);
 	stack_pointer--;
 
 	program_counter = value;
+
+	cycles = cycles + 6;
+	map->tick(6);
 }
 
-void cpu::txs(addressing_mode mode)
+OPCODE_RT cpu::txs(addressing_mode mode)
 {
 	printf("TXS \n");
 	stack_pointer = x;
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::tsx(addressing_mode mode)
+OPCODE_RT cpu::tsx(addressing_mode mode)
 {
 	printf("TSX \n");
 	x = stack_pointer;
+
 	set_flags(flags::zero, x == 0x00);
 	set_flags(flags::negative, x & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::pha(addressing_mode mode)
+OPCODE_RT cpu::pha(addressing_mode mode)
 {
 	printf("PHA \n");
 
-	map->mem_write(accumulator, 0x0100 + stack_pointer);
+	map->mem_write(accumulator, 0x0100 + stack_pointer, true);
 	stack_pointer--;
+
+	u8 op_cycles = 3;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::pla(addressing_mode mdoe)
+OPCODE_RT cpu::pla(addressing_mode mdoe)
 {
 	printf("PLA \n");
 
 	stack_pointer++;
-	accumulator = map->mem_read(0x0100 + stack_pointer);
+	accumulator = map->mem_read(0x0100 + stack_pointer, true);
 
 	set_flags(flags::zero, accumulator == 0x00);
 	set_flags(flags::negative, accumulator & 0x80);
+
+	u8 op_cycles = 4;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::php(addressing_mode mode)
+OPCODE_RT cpu::php(addressing_mode mode)
 {
 	printf("PHP \n");
 
-	map->mem_write(0x0100 + stack_pointer, processor_status | 0x08);
+	map->mem_write(0x0100 + stack_pointer, processor_status | 0x08, true);
 
 	set_flags(flags::break_instruction, 0);
 	set_flags(flags::overflow, 0);
 
 	stack_pointer--;
+
+	u8 op_cycles = 3;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::plp(addressing_mode mode)
+OPCODE_RT cpu::plp(addressing_mode mode)
 {
 	printf("PLP \n");
 
 	stack_pointer++;
-	accumulator = map->mem_read(0x0100 + stack_pointer);
+	processor_status = map->mem_read(0x0100 + stack_pointer, true);
 
-	set_flags(flags::zero, accumulator == 0x00);
-	set_flags(flags::negative, accumulator & 0x80);
+	u8 op_cycles = 4;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::tax(addressing_mode mode)
+OPCODE_RT cpu::tax(addressing_mode mode)
 {
 	printf("TAX \n");
 
@@ -905,9 +1144,13 @@ void cpu::tax(addressing_mode mode)
 
 	set_flags(flags::zero, x == 0x00);
 	set_flags(flags::negative, x & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::txa(addressing_mode mode)
+OPCODE_RT cpu::txa(addressing_mode mode)
 {
 	printf("TXA \n");
 
@@ -915,9 +1158,13 @@ void cpu::txa(addressing_mode mode)
 
 	set_flags(flags::zero, accumulator == 0x00);
 	set_flags(flags::negative, accumulator & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::dex(addressing_mode mode)
+OPCODE_RT cpu::dex(addressing_mode mode)
 {
 	printf("DEX \n");
 
@@ -925,9 +1172,13 @@ void cpu::dex(addressing_mode mode)
 
 	set_flags(flags::zero, x == 0x00);
 	set_flags(flags::negative, x & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::inx(addressing_mode mode)
+OPCODE_RT cpu::inx(addressing_mode mode)
 {
 	printf("INX \n");
 
@@ -935,9 +1186,13 @@ void cpu::inx(addressing_mode mode)
 
 	set_flags(flags::zero, x == 0x00);
 	set_flags(flags::negative, x & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::tay(addressing_mode mode)
+OPCODE_RT cpu::tay(addressing_mode mode)
 {
 	printf("TAY \n");
 
@@ -945,9 +1200,13 @@ void cpu::tay(addressing_mode mode)
 
 	set_flags(flags::zero, y == 0x00);
 	set_flags(flags::negative, y & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::tya(addressing_mode mode)
+OPCODE_RT cpu::tya(addressing_mode mode)
 {
 	printf("TYA \n");
 
@@ -955,9 +1214,13 @@ void cpu::tya(addressing_mode mode)
 
 	set_flags(flags::zero, accumulator == 0x00);
 	set_flags(flags::negative, accumulator & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::dey(addressing_mode mode)
+OPCODE_RT cpu::dey(addressing_mode mode)
 {
 	printf("DEY \n");
 
@@ -965,9 +1228,13 @@ void cpu::dey(addressing_mode mode)
 
 	set_flags(flags::zero, y == 0x00);
 	set_flags(flags::negative, y & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
-void cpu::iny(addressing_mode mode)
+OPCODE_RT cpu::iny(addressing_mode mode)
 {
 	printf("INY \n");
 
@@ -975,6 +1242,10 @@ void cpu::iny(addressing_mode mode)
 
 	set_flags(flags::zero, y == 0x00);
 	set_flags(flags::negative, y & 0x80);
+
+	u8 op_cycles = 2;
+	cycles += op_cycles;
+	map->tick(op_cycles);
 }
 
 u16 cpu::get_operand_address(addressing_mode mode)
@@ -1001,57 +1272,57 @@ u16 cpu::immediate()
 
 u16 cpu::zero_page()
 {
-	return static_cast<u16>(map->mem_read(program_counter));
+	return static_cast<u16>(map->mem_read(program_counter, true));
 }
 
 u16 cpu::zero_page_x()
 {
-	u16 pos = map->mem_read(program_counter);
+	u16 pos = map->mem_read(program_counter, true);
 	return pos + static_cast<u16>(x);
 }
 
 u16 cpu::zero_page_y()
 {
-	u16 pos = map->mem_read(program_counter);
+	u16 pos = map->mem_read(program_counter, true);
 	return pos + static_cast<u16>(y);
 }
 
 u16 cpu::absolute()
 {
 	program_counter++;
-	return map->mem_read_16(program_counter - 1);
+	return map->mem_read_16(program_counter - 1, true);
 }
 
 u16 cpu::absolute_x()
 {
-	u16 base = map->mem_read_16(program_counter);
+	u16 base = map->mem_read_16(program_counter, true);
 	program_counter++;
 	return base + static_cast<u16>(x);
 }
 
 u16 cpu::absolute_y()
 {
-	u16 base = map->mem_read_16(program_counter);
+	u16 base = map->mem_read_16(program_counter, true);
 	program_counter++;
 	return base + static_cast<u16>(y);
 }
 
 u16 cpu::indirect_x()
 {
-	u8 base = map->mem_read(program_counter);
+	u8 base = map->mem_read(program_counter, true);
 	u8 ptr = base + x;
-	u8 lo = map->mem_read(static_cast<u16>(ptr));
-	u8 hi = map->mem_read(static_cast<u16> (ptr + 1));
+	u8 lo = map->mem_read(static_cast<u16>(ptr), true);
+	u8 hi = map->mem_read(static_cast<u16> (ptr + 1), true);
 
 	return hi << 8 | static_cast<u16>(lo);
 }
 
 u16 cpu::indirect_y()
 {
-	u16 base = map->mem_read(program_counter);
+	u16 base = map->mem_read(program_counter, true);
 
-	u8 lo = map->mem_read(static_cast<u16>(base));
-	u16 hi = map->mem_read(static_cast<u16> (base + 1));
+	u8 lo = map->mem_read(static_cast<u16>(base), true);
+	u16 hi = map->mem_read(static_cast<u16> (base + 1), true);
 	u16 deref_base = hi << 8 | static_cast<u16>(lo);
 
 	return  hi << 8 | static_cast<u16>(lo);

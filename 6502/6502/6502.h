@@ -2,7 +2,9 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include "bus.h"
+
+#include "ppu.h"
+#include "cart.h"
 
 #define LDA 0
 #define ADC 1
@@ -70,6 +72,8 @@
 
 class mapper;
 
+using OPCODE_RT = void;
+
 using u8 = uint8_t;
 using u16 = uint16_t;
 
@@ -99,11 +103,7 @@ enum class flags : int
 	carry = 0x1
 };
 
-enum switcher
-{
-	CPU,
-	PPU
-};
+class bus;
 
 class cpu
 {
@@ -113,7 +113,7 @@ class cpu
 	u8 processor_status;
 	u16 program_counter;
 
-	mapper* map;
+	bus* map;
 
 	std::map<int, int> opcodes_addressing_mode_mapping;
 	std::map<int, int> opcodes_func_mapping;
@@ -121,80 +121,83 @@ class cpu
 	int value_holder;
 	u8 prev_accumulator;
 
+	int cycles;
+	u8 cycle_buf;
+
 	addressing_mode modes[11];
 
 	// bit manipulatio instruction
-	void lda(addressing_mode mode);
-	void adc(addressing_mode mode);
-	void bitwise_and(addressing_mode mode);
-	void asl(addressing_mode mode);
-	void bit(addressing_mode mode);
-	void cmp(addressing_mode mode);
-	void cpx(addressing_mode mode);
-	void cpy(addressing_mode mode);
-	void dec(addressing_mode mode);
-	void eor(addressing_mode mode);
-	void inc(addressing_mode mode);
-	void ldx(addressing_mode mode);
-	void ldy(addressing_mode mode);
-	void lsr(addressing_mode mode);
-	void nop(addressing_mode mode);
-	void ora(addressing_mode mode);
-	void rol(addressing_mode mode);
-	void ror(addressing_mode mode);
-	void sbc(addressing_mode mode);
-	void sta(addressing_mode mode);
-	void stx(addressing_mode mode);
-	void sty(addressing_mode mode);
+	OPCODE_RT lda(addressing_mode mode);
+	OPCODE_RT adc(addressing_mode mode);
+	OPCODE_RT bitwise_and(addressing_mode mode);
+	OPCODE_RT asl(addressing_mode mode);
+	OPCODE_RT bit(addressing_mode mode);
+	OPCODE_RT cmp(addressing_mode mode);
+	OPCODE_RT cpx(addressing_mode mode);
+	OPCODE_RT cpy(addressing_mode mode);
+	OPCODE_RT dec(addressing_mode mode);
+	OPCODE_RT eor(addressing_mode mode);
+	OPCODE_RT inc(addressing_mode mode);
+	OPCODE_RT ldx(addressing_mode mode);
+	OPCODE_RT ldy(addressing_mode mode);
+	OPCODE_RT lsr(addressing_mode mode);
+	OPCODE_RT nop(addressing_mode mode);
+	OPCODE_RT ora(addressing_mode mode);
+	OPCODE_RT rol(addressing_mode mode);
+	OPCODE_RT ror(addressing_mode mode);
+	OPCODE_RT sbc(addressing_mode mode);
+	OPCODE_RT sta(addressing_mode mode);
+	OPCODE_RT stx(addressing_mode mode);
+	OPCODE_RT sty(addressing_mode mode);
 
 	// branching instruction
-	void bcc(addressing_mode mode);
-	void bcs(addressing_mode mode);
-	void beq(addressing_mode mode);
-	void bmi(addressing_mode mode);
-	void bne(addressing_mode mode);
-	void bpl(addressing_mode mode);
-	void bvc(addressing_mode mode);
-	void bvs(addressing_mode mode);
+	OPCODE_RT bcc(addressing_mode mode);
+	OPCODE_RT bcs(addressing_mode mode);
+	OPCODE_RT beq(addressing_mode mode);
+	OPCODE_RT bmi(addressing_mode mode);
+	OPCODE_RT bne(addressing_mode mode);
+	OPCODE_RT bpl(addressing_mode mode);
+	OPCODE_RT bvc(addressing_mode mode);
+	OPCODE_RT bvs(addressing_mode mode);
 
 	// interrupt instruction
-	void rti(addressing_mode mode);
-	void rts(addressing_mode mode);
-	void brk(addressing_mode mode);
+	OPCODE_RT rti(addressing_mode mode);
+	OPCODE_RT rts(addressing_mode mode);
+	OPCODE_RT brk(addressing_mode mode);
 
 	// Flags Instruction
-	void clc(addressing_mode mode);
-	void sec(addressing_mode mode);
-	void cli(addressing_mode mode);
-	void sei(addressing_mode mode);
-	void clv(addressing_mode mode);
-	void cld(addressing_mode mode);
-	void sed(addressing_mode mode);
+	OPCODE_RT clc(addressing_mode mode);
+	OPCODE_RT sec(addressing_mode mode);
+	OPCODE_RT cli(addressing_mode mode);
+	OPCODE_RT sei(addressing_mode mode);
+	OPCODE_RT clv(addressing_mode mode);
+	OPCODE_RT cld(addressing_mode mode);
+	OPCODE_RT sed(addressing_mode mode);
 
 	// branching instruction
-	void jmp(addressing_mode mode);
-	void jsr(addressing_mode mode);
+	OPCODE_RT jmp(addressing_mode mode);
+	OPCODE_RT jsr(addressing_mode mode);
 
 	// stack instruction
-	void txs(addressing_mode mode);
-	void tsx(addressing_mode mode);
-	void pha(addressing_mode mode);
-	void pla(addressing_mode mdoe);
-	void php(addressing_mode mode);
-	void plp(addressing_mode mode);
+	OPCODE_RT txs(addressing_mode mode);
+	OPCODE_RT tsx(addressing_mode mode);
+	OPCODE_RT pha(addressing_mode mode);
+	OPCODE_RT pla(addressing_mode mdoe);
+	OPCODE_RT php(addressing_mode mode);
+	OPCODE_RT plp(addressing_mode mode);
 
 	// register instruction
-	void tax(addressing_mode mode);
-	void txa(addressing_mode mode);
-	void dex(addressing_mode mode);
-	void inx(addressing_mode mode);
-	void tay(addressing_mode mode);
-	void tya(addressing_mode mode);
-	void dey(addressing_mode mode);
-	void iny(addressing_mode mode);
+	OPCODE_RT tax(addressing_mode mode);
+	OPCODE_RT txa(addressing_mode mode);
+	OPCODE_RT dex(addressing_mode mode);
+	OPCODE_RT inx(addressing_mode mode);
+	OPCODE_RT tay(addressing_mode mode);
+	OPCODE_RT tya(addressing_mode mode);
+	OPCODE_RT dey(addressing_mode mode);
+	OPCODE_RT iny(addressing_mode mode);
 
-	typedef void (cpu::*opcodes_function) (addressing_mode mode);
-	opcodes_function functions[58];
+	typedef OPCODE_RT (cpu::*opcodes_function) (addressing_mode mode);
+	opcodes_function functions[56];
 
 	u16 get_operand_address(addressing_mode mode);
 	void set_flags(flags f, bool cond);
@@ -214,13 +217,14 @@ class cpu
 
 public:
 
-	cpu();
+	cpu(bus* b);
 	~cpu();
-	void load_program_in_rom(std::vector<u8> opcodes);
-	void connect_bus();
+	void connect_bus(cart* c, ppu* p);
 	void run();
 	void reset();
 	void irq();
 	void nmi();
 	void print_contents();
+
+	u8 cycle(addressing_mode mode, bool simple);
 };

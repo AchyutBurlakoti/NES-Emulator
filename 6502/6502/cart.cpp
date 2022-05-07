@@ -1,29 +1,22 @@
 #include "cart.h"
+#include "helpers.h"
 
-cart::cart(const std::string& path)
+cart::cart(const char* path)
 {
-	auto ss = std::ostringstream{};
-	std::ifstream input_file(path);
+	FILE* fd = fopen(path, "r+");
 
-	if (!input_file.is_open())
-	{
-		std::cerr << "error";
-		exit(0);
-	}
+	defer{ free(fd); };
 
-	ss << input_file.rdbuf();
+	fseek(fd, 0, SEEK_END);
 
-	nes_file = ss.str();
+	long filesize = ftell(fd);
 
-	// check for iNes
-	std::string header;
+	nes_file = (char*)malloc(filesize * sizeof(char));
 
-	std::copy_n(nes_file.begin(), 4, std::back_inserter(header));
+	fseek(fd, 0, SEEK_SET);
 
-	if (header != NES_TAG)
-	{
-		std::cerr << "This is not nes file" << std::endl;
-	}
+	int bytes_read = fread(nes_file, filesize, 1, fd);
+
 
 	uint8_t mapper = (nes_file[7] & 0xf0) | (nes_file[6] >> 4);
 
@@ -52,6 +45,11 @@ cart::cart(const std::string& path)
 
 	prg_rom_start = skip_trainer ? 537 : 512;
 	chr_rom_start = prg_rom_start + prg_rom_size;
+
+	std::cout << prg_rom_start << std::endl;
+	std::cout << prg_rom_size << std::endl;
+
+	load_prg_chr_rom();
 }
 
 void cart::load_prg_chr_rom()

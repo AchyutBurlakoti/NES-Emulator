@@ -142,6 +142,7 @@
     <ClInclude Include="6502.h" />
     <ClInclude Include="bus.h" />
     <ClInclude Include="cart.h" />
+    <ClInclude Include="helpers.h" />
     <ClInclude Include="ppu.h" />
     <ClInclude Include="ram.h" />
   </ItemGroup>
