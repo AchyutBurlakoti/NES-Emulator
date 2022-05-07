@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+
 #include "ppu.h"
 #include "cart.h"
 
@@ -71,6 +72,8 @@
 
 class mapper;
 
+using OPCODE_RT = void;
+
 using u8 = uint8_t;
 using u16 = uint16_t;
 
@@ -100,12 +103,6 @@ enum class flags : int
 	carry = 0x1
 };
 
-enum switcher
-{
-	CPU,
-	PPU
-};
-
 class bus;
 
 class cpu
@@ -125,82 +122,82 @@ class cpu
 	u8 prev_accumulator;
 
 	int cycles;
-	uint8_t cycle_buf;
+	u8 cycle_buf;
 
 	addressing_mode modes[11];
 
 	// bit manipulatio instruction
-	uint8_t lda(addressing_mode mode);
-	uint8_t adc(addressing_mode mode);
-	uint8_t bitwise_and(addressing_mode mode);
-	uint8_t asl(addressing_mode mode);
-	uint8_t bit(addressing_mode mode);
-	uint8_t cmp(addressing_mode mode);
-	uint8_t cpx(addressing_mode mode);
-	uint8_t cpy(addressing_mode mode);
-	uint8_t dec(addressing_mode mode);
-	uint8_t eor(addressing_mode mode);
-	uint8_t inc(addressing_mode mode);
-	uint8_t ldx(addressing_mode mode);
-	uint8_t ldy(addressing_mode mode);
-	uint8_t lsr(addressing_mode mode);
-	uint8_t nop(addressing_mode mode);
-	uint8_t ora(addressing_mode mode);
-	uint8_t rol(addressing_mode mode);
-	uint8_t ror(addressing_mode mode);
-	uint8_t sbc(addressing_mode mode);
-	uint8_t sta(addressing_mode mode);
-	uint8_t stx(addressing_mode mode);
-	uint8_t sty(addressing_mode mode);
+	OPCODE_RT lda(addressing_mode mode);
+	OPCODE_RT adc(addressing_mode mode);
+	OPCODE_RT bitwise_and(addressing_mode mode);
+	OPCODE_RT asl(addressing_mode mode);
+	OPCODE_RT bit(addressing_mode mode);
+	OPCODE_RT cmp(addressing_mode mode);
+	OPCODE_RT cpx(addressing_mode mode);
+	OPCODE_RT cpy(addressing_mode mode);
+	OPCODE_RT dec(addressing_mode mode);
+	OPCODE_RT eor(addressing_mode mode);
+	OPCODE_RT inc(addressing_mode mode);
+	OPCODE_RT ldx(addressing_mode mode);
+	OPCODE_RT ldy(addressing_mode mode);
+	OPCODE_RT lsr(addressing_mode mode);
+	OPCODE_RT nop(addressing_mode mode);
+	OPCODE_RT ora(addressing_mode mode);
+	OPCODE_RT rol(addressing_mode mode);
+	OPCODE_RT ror(addressing_mode mode);
+	OPCODE_RT sbc(addressing_mode mode);
+	OPCODE_RT sta(addressing_mode mode);
+	OPCODE_RT stx(addressing_mode mode);
+	OPCODE_RT sty(addressing_mode mode);
 
 	// branching instruction
-	uint8_t bcc(addressing_mode mode);
-	uint8_t bcs(addressing_mode mode);
-	uint8_t beq(addressing_mode mode);
-	uint8_t bmi(addressing_mode mode);
-	uint8_t bne(addressing_mode mode);
-	uint8_t bpl(addressing_mode mode);
-	uint8_t bvc(addressing_mode mode);
-	uint8_t bvs(addressing_mode mode);
+	OPCODE_RT bcc(addressing_mode mode);
+	OPCODE_RT bcs(addressing_mode mode);
+	OPCODE_RT beq(addressing_mode mode);
+	OPCODE_RT bmi(addressing_mode mode);
+	OPCODE_RT bne(addressing_mode mode);
+	OPCODE_RT bpl(addressing_mode mode);
+	OPCODE_RT bvc(addressing_mode mode);
+	OPCODE_RT bvs(addressing_mode mode);
 
 	// interrupt instruction
-	uint8_t rti(addressing_mode mode);
-	uint8_t rts(addressing_mode mode);
-	uint8_t brk(addressing_mode mode);
+	OPCODE_RT rti(addressing_mode mode);
+	OPCODE_RT rts(addressing_mode mode);
+	OPCODE_RT brk(addressing_mode mode);
 
 	// Flags Instruction
-	uint8_t clc(addressing_mode mode);
-	uint8_t sec(addressing_mode mode);
-	uint8_t cli(addressing_mode mode);
-	uint8_t sei(addressing_mode mode);
-	uint8_t clv(addressing_mode mode);
-	uint8_t cld(addressing_mode mode);
-	uint8_t sed(addressing_mode mode);
+	OPCODE_RT clc(addressing_mode mode);
+	OPCODE_RT sec(addressing_mode mode);
+	OPCODE_RT cli(addressing_mode mode);
+	OPCODE_RT sei(addressing_mode mode);
+	OPCODE_RT clv(addressing_mode mode);
+	OPCODE_RT cld(addressing_mode mode);
+	OPCODE_RT sed(addressing_mode mode);
 
 	// branching instruction
-	uint8_t jmp(addressing_mode mode);
-	uint8_t jsr(addressing_mode mode);
+	OPCODE_RT jmp(addressing_mode mode);
+	OPCODE_RT jsr(addressing_mode mode);
 
 	// stack instruction
-	uint8_t txs(addressing_mode mode);
-	uint8_t tsx(addressing_mode mode);
-	uint8_t pha(addressing_mode mode);
-	uint8_t pla(addressing_mode mdoe);
-	uint8_t php(addressing_mode mode);
-	uint8_t plp(addressing_mode mode);
+	OPCODE_RT txs(addressing_mode mode);
+	OPCODE_RT tsx(addressing_mode mode);
+	OPCODE_RT pha(addressing_mode mode);
+	OPCODE_RT pla(addressing_mode mdoe);
+	OPCODE_RT php(addressing_mode mode);
+	OPCODE_RT plp(addressing_mode mode);
 
 	// register instruction
-	uint8_t tax(addressing_mode mode);
-	uint8_t txa(addressing_mode mode);
-	uint8_t dex(addressing_mode mode);
-	uint8_t inx(addressing_mode mode);
-	uint8_t tay(addressing_mode mode);
-	uint8_t tya(addressing_mode mode);
-	uint8_t dey(addressing_mode mode);
-	uint8_t iny(addressing_mode mode);
+	OPCODE_RT tax(addressing_mode mode);
+	OPCODE_RT txa(addressing_mode mode);
+	OPCODE_RT dex(addressing_mode mode);
+	OPCODE_RT inx(addressing_mode mode);
+	OPCODE_RT tay(addressing_mode mode);
+	OPCODE_RT tya(addressing_mode mode);
+	OPCODE_RT dey(addressing_mode mode);
+	OPCODE_RT iny(addressing_mode mode);
 
-	typedef uint8_t (cpu::*opcodes_function) (addressing_mode mode);
-	opcodes_function functions[58];
+	typedef OPCODE_RT (cpu::*opcodes_function) (addressing_mode mode);
+	opcodes_function functions[56];
 
 	u16 get_operand_address(addressing_mode mode);
 	void set_flags(flags f, bool cond);
@@ -222,7 +219,6 @@ public:
 
 	cpu(bus* b);
 	~cpu();
-	void load_program_in_rom(std::vector<u8> opcodes);
 	void connect_bus(cart* c, ppu* p);
 	void run();
 	void reset();
@@ -230,5 +226,5 @@ public:
 	void nmi();
 	void print_contents();
 
-	uint8_t cycle(addressing_mode mode, bool simple);
+	u8 cycle(addressing_mode mode, bool simple);
 };

@@ -32,7 +32,14 @@ void ppu::incr_addr()
 
 void ppu::write_to_ctrl(uint8_t value)
 {
+	bool before_nmi_status = (ctrl.reg & ctrl.nmi);
 	ctrl.reg = value;
+
+	if (!before_nmi_status && (ctrl.reg & ctrl.nmi) && (status.reg & status.vblk_started))
+	{
+		// nmi interrupt;
+		nmi_interrupt_stats = true;
+	}
 }
 
 void ppu::write_to_mask(uint8_t value)
@@ -181,9 +188,43 @@ void ppu::connect_bus()
 {
 }
 
-void ppu::tick(uint8_t cyc)
+bool ppu::tick(uint8_t cyc)
 {
 	cycles = cycles + cyc;
 
 	cycle_buf = cyc;
+
+	if (cycles >= 341)
+	{
+		cycles = cycles - 341;
+		scanline++;
+
+		if (scanline == 241)
+		{
+			// set v_blank status true
+			status.reg = status.reg | status.vblk_started;
+
+			// reset sprite zero hit
+			status.reg = status.reg & ~status.sp0_hit;
+
+			if (ctrl.reg & ctrl.nmi)
+			{
+				nmi_interrupt_stats = true;
+			}
+		}
+
+		if (scanline >= 262)
+		{
+			// reset vblank status;
+			scanline = 0;
+			nmi_interrupt_stats = false;
+
+			// status register
+			status.reg = status.reg & ~status.sp0_hit;
+			status.reg = status.reg & ~status.vblk_started;
+
+			return true;
+		}
+	}
+	return false;
 }

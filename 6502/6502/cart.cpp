@@ -46,6 +46,9 @@ cart::cart(const char* path)
 	prg_rom_start = skip_trainer ? 537 : 512;
 	chr_rom_start = prg_rom_start + prg_rom_size;
 
+	std::cout << prg_rom_start << std::endl;
+	std::cout << prg_rom_size << std::endl;
+
 	load_prg_chr_rom();
 }
 

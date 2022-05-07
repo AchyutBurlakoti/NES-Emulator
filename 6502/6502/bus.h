@@ -28,4 +28,6 @@ public:
 	void tick(uint8_t cyc);
 
 	void connect_ppu_to_bus(ppu* pp);
+
+	bool nmi_interrupt();
 };

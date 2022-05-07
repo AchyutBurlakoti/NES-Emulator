@@ -165,6 +165,15 @@ void bus::connect_ppu_to_bus(ppu* pp)
 	p = pp;
 }
 
+bool bus::nmi_interrupt()
+{
+	bool status = p->nmi_interrupt_stats;
+
+	p->nmi_interrupt_stats = false;
+
+	return status;
+}
+
 bus::bus(cart* ca)
 {
 	c = ca;

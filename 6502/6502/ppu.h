@@ -79,6 +79,7 @@ class ppu
 
 	int cycles;
 	uint8_t cycle_buf;
+	uint16_t scanline = 0;
 
 public:
 
@@ -101,5 +102,7 @@ public:
 
 	void connect_bus();
 
-	void tick(uint8_t cyc);
+	bool tick(uint8_t cyc);
+
+	bool nmi_interrupt_stats = false;
 };

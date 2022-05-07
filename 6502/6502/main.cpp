@@ -18,4 +18,6 @@ int main()
 	b->connect_ppu_to_bus(p);
 
 	c->run();
+
+	std::cout << "hello world";
 }
