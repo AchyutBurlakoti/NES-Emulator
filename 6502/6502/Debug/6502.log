@@ -1,3 +1,11 @@
-﻿  main.cpp
+﻿  cart.cpp
   The contents of <filesystem> are available only with C++17 or later.
+  display.cpp
+  helpers.cpp
+  renderer.cpp
+  The contents of <filesystem> are available only with C++17 or later.
+  Generating Code...
+LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+glew32s.lib(glew.obj) : warning LNK4099: PDB 'vc120.pdb' was not found with 'glew32s.lib(glew.obj)' or at 'E:\PPP\6502\Debug\vc120.pdb'; linking object as if no debug info
   6502.vcxproj -> E:\PPP\6502\Debug\6502.exe

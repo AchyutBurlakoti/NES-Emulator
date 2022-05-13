@@ -16,6 +16,26 @@ void bus::mem_write(uint8_t data, uint16_t address, bool _cpu)
 			p->write_to_ctrl(data);
 		}
 
+		else if (address == 0x2002)
+		{
+
+		}
+
+		else if (address = 0x2003) // oam address
+		{
+			p->write_to_oam_addr(data);
+		}
+
+		else if (address == 0x2004) // oam data r/w
+		{
+			p->write_to_data(data);
+		}
+
+		else if (address == 0x2005) // scroll write *2
+		{
+			p->write_to_scroll(data);
+		}
+
 		else if (address == 0x2006)
 		{
 			p->write_to_ppu_addr(data);
@@ -31,6 +51,19 @@ void bus::mem_write(uint8_t data, uint16_t address, bool _cpu)
 			uint16_t mirror_addr = address & 0b0010000000000111;
 
 			mem_write(data, mirror_addr, _cpu);
+		}
+
+		else if (address == 0x4014)
+		{
+			uint8_t* buffer = (uint8_t*)malloc(256 * sizeof(uint8_t));
+
+			uint16_t hi = data << 8;
+
+			for (int i = 0; i < 256; i++)
+			{
+				buffer[i] = mem_read(hi + i,true);
+			}
+			p->write_oam_dma(buffer);
 		}
 
 		else if (address >= 0x8000 && address <= 0xffff)
@@ -85,6 +118,16 @@ uint8_t bus::mem_read(uint16_t address, bool _cpu)
 		else if (address == 0x2000 || address == 0x2001 || address == 0x2003 || address == 0x2005 || address == 0x2006 || address == 0x4014)
 		{
 			std::cerr << "write only address of ppu" << std::endl;
+		}
+
+		else if (address == 0x2002)
+		{
+			return p->read_status();
+		}
+
+		else if (address == 0x2004) // oam data
+		{
+			return p->read_oam_data();
 		}
 
 		else if (address == 0x2007)
@@ -157,7 +200,14 @@ uint8_t bus::prg_rom_read(uint16_t address)
 
 void bus::tick(uint8_t cyc)
 {
+	bool nmi_before = false;
 	p->tick(cyc * 3);
+	bool nmi_after = false;
+
+	if (!nmi_before && nmi_after)
+	{
+		//
+	}
 }
 
 void bus::connect_ppu_to_bus(ppu* pp)
