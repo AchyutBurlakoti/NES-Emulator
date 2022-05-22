@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include "helpers.h"
 
@@ -13,6 +15,4 @@ public:
 	display() = default;
 
 	void set_pixel(uint16_t x, uint16_t y, type::RGB color);
-
-	void draw();
 };

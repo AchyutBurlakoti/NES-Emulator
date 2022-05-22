@@ -1,7 +1,7 @@
 #pragma once
 #include <iostream>
-#include "ppu.h"
 #include "display.h"
+#include "ppu.h"
 
 uint8_t* background_pallette(ppu* p, uint16_t tile_col, uint16_t tile_row);
 

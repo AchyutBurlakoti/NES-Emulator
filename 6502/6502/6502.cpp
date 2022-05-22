@@ -200,7 +200,7 @@ void cpu::run()
 {
 	int counter = 0;
 	program_counter = 0x8000;
-	while (counter != 500)
+	while (1)
 	{
 		// polling nmi interrupt by cpu
 		if (map->nmi_interrupt())

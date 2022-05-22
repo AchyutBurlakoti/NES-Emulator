@@ -1,5 +1,6 @@
-#include "renderer.h"
 #include <stdlib.h>
+
+#include "renderer.h"
 
 uint8_t* background_palette(ppu* p, uint16_t tile_col, uint16_t tile_row)
 {

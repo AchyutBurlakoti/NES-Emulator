@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "bus.h"
+#include "display.h"
 
 struct addr_reg
 {
@@ -84,6 +85,8 @@ public:
 	int cycles;
 	uint8_t cycle_buf;
 	uint16_t scanline = 0;
+
+	display* d;
 
 public:
 

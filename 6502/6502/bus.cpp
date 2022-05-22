@@ -200,14 +200,7 @@ uint8_t bus::prg_rom_read(uint16_t address)
 
 void bus::tick(uint8_t cyc)
 {
-	bool nmi_before = false;
 	p->tick(cyc * 3);
-	bool nmi_after = false;
-
-	if (!nmi_before && nmi_after)
-	{
-		//
-	}
 }
 
 void bus::connect_ppu_to_bus(ppu* pp)
