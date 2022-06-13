@@ -41,3 +41,37 @@ DEFER<F> operator+(defer_dummy, F&& f)
                  snprintf(fmt, sizeof fmt, #x " = %s\n", FMTSPEC(x)); \
                      printf(fmt, (x)); \
                          }while(0)
+
+
+
+
+
+namespace type
+{
+    typedef union
+    {
+        struct
+        {
+            uint16_t r;
+            uint16_t g;
+            uint16_t b;
+        };
+
+        struct
+        {
+            uint16_t x;
+            uint16_t y;
+            uint16_t z;
+        };
+
+        struct
+        {
+            uint16_t a;
+            uint16_t b;
+            uint16_t c;
+        };
+
+    } RGB;
+};
+
+extern type::RGB SYSTEM_PALETTE[64];

@@ -1,8 +1,11 @@
 #include "ppu.h"
+#include "renderer.h"
 
 ppu::ppu(bus* b)
 {
 	map = b;
+
+	d = new display;
 
 	oam_addr = 0;
 	internal_data_buf = 0;
@@ -211,6 +214,8 @@ bool ppu::tick(uint8_t cyc)
 			{
 				nmi_interrupt_stats = true;
 			}
+
+			render(this, d);
 		}
 
 		if (scanline >= 262)

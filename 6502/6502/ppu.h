@@ -1,7 +1,9 @@
 #pragma once
 #include <iostream>
+#include <vector>
 
 #include "bus.h"
+#include "display.h"
 
 struct addr_reg
 {
@@ -58,6 +60,9 @@ struct scrl_reg
 
 class ppu
 {
+
+public:
+
 	uint8_t* chr_rom;
 
 	Mirroring mirror;
@@ -69,7 +74,7 @@ class ppu
 	addr_reg addr;
 
 	uint8_t oam_addr;
-	uint8_t oam_data[256] = { 0 };
+	std::vector<uint8_t> oam_data;
 	uint8_t palette_table[32] = { 0 };
 	uint8_t vram[2048] = { 0 };
 
@@ -80,6 +85,8 @@ class ppu
 	int cycles;
 	uint8_t cycle_buf;
 	uint16_t scanline = 0;
+
+	display* d;
 
 public:
 
